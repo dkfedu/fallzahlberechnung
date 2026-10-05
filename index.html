@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fallzahlberechnung</title>
+<style>
+:root{--blue:#24627a;--pale:#edf5f7;--bg:#f6f7f8;--text:#222;--muted:#5e6870;--ok:#1c6b43;--bad:#a22}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--text)}
+main{max-width:1050px;margin:auto;padding:22px}.head,.card,.result{background:#fff;border-radius:10px;padding:24px;box-shadow:0 1px 3px #0001}.head{border-left:6px solid var(--blue);margin-bottom:18px}.head h1{margin:0 0 8px;font-size:28px}.head p{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(300px,5fr) minmax(360px,7fr);gap:18px}.card h2,.result h2{margin-top:0;font-size:19px}label{font-weight:600;display:block;margin:14px 0 6px}.unitrow{display:flex;gap:8px;align-items:center}.unitrow input[type=number]{flex:1}input[type=number]{width:100%;padding:10px;border:1px solid #b8c0c5;border-radius:6px;font-size:16px}input[type=range]{width:100%}.range-line{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}.value{font-variant-numeric:tabular-nums;color:var(--blue);font-weight:700}.small{font-size:14px;color:var(--muted)}button{padding:10px 14px;border:1px solid #9aa5ab;border-radius:6px;background:#fff;cursor:pointer}button:hover{background:#f2f5f6}.result{background:var(--pale);border:2px solid var(--blue);text-align:center}.big{font-size:54px;line-height:1;color:var(--blue);font-weight:800;margin:14px 0 5px}.per{font-size:17px}.details{margin-top:18px}.effect{padding:15px;border-radius:7px;background:#f5f5f5;line-height:1.7}.warning{color:var(--bad);font-weight:600}.foot{margin-top:14px;color:var(--muted);font-size:13px}.check{margin-top:16px;padding-top:12px;border-top:1px solid #d8e1e5}.check.ok{color:var(--ok)}.check.bad{color:var(--bad)}
+@media(max-width:760px){.grid{grid-template-columns:1fr}main{padding:10px}.head,.card,.result{padding:18px}.big{font-size:45px}}
+</style></head>
+<body><main>
+<section class="head"><h1>Wie viele Personen braucht eine Studie?</h1><p>Verändern Sie die Annahmen und beobachten Sie, wie sich die benötigte Fallzahl verändert.</p></section>
+<div class="grid"><section class="card"><h2>Annahmen</h2>
+<label for="mc">Mittelwert Kontrollgruppe (mmHg)</label><div class="unitrow"><input id="mc" type="number" min="50" max="250" step="1" value="150"><span>mmHg</span></div>
+<label for="mi">Mittelwert Interventionsgruppe (mmHg)</label><div class="unitrow"><input id="mi" type="number" min="50" max="250" step="1" value="140"><span>mmHg</span></div>
+<label for="sd">Standardabweichung: <span class="value" id="sdv">20</span> mmHg</label><input id="sd" type="range" min="1" max="60" step="1" value="20"><div class="range-line"><span>1</span><span>60</span></div>
+<label for="power">Power: <span class="value" id="powerv">0.80</span></label><input id="power" type="range" min="0.50" max="0.95" step="0.05" value="0.80"><div class="range-line"><span>0.50</span><span>0.95</span></div>
+<p class="small">Signifikanzniveau: 5 % (α = 0.05)<br>Die Gruppen werden als gleich gross angenommen.</p><button id="reset">Ausgangswerte wiederherstellen</button>
+</section><div><section class="result"><h2>Benötigte Fallzahl</h2><div class="big" id="total">128</div><div>Teilnehmende insgesamt</div><p class="per" id="per">64 Personen pro Gruppe</p><div id="error" class="warning"></div></section>
+<section class="card details"><h2>Was bedeuten Ihre Annahmen?</h2><div class="effect" id="effect"></div><p class="small">Hinweis: Die berechnete Fallzahl ist eine statistische Planungsgrösse. In einer realen Studie wird die Zahl häufig zusätzlich erhöht, um beispielsweise Studienabbrüche zu berücksichtigen.</p><div id="selfcheck" class="check small"></div></section></div></div>
+<p class="foot">Berechnung: zwei unabhängige, gleich grosse Gruppen; zweiseitiger Zwei-Stichproben-t-Test; α = 0.05. Die Power wird über die nichtzentrale t-Verteilung berechnet.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const EPS=1e-14;
+function logGamma(z){const c=[676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];if(z<0.5)return Math.log(Math.PI)-Math.log(Math.sin(Math.PI*z))-logGamma(1-z);z-=1;let x=0.99999999999980993;for(let i=0;i<c.length;i++)x+=c[i]/(z+i+1);let q=z+c.length-0.5;return 0.5*Math.log(2*Math.PI)+(z+0.5)*Math.log(q)-q+Math.log(x)}
+function betaCF(a,b,x){let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;if(Math.abs(d)<EPS)d=EPS;d=1/d;let h=d;for(let m=1;m<=250;m++){let m2=2*m,aa=m*(b-m)*x/((qam+m2)*(a+m2));d=1+aa*d;if(Math.abs(d)<EPS)d=EPS;c=1+aa/c;if(Math.abs(c)<EPS)c=EPS;d=1/d;h*=d*c;aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));d=1+aa*d;if(Math.abs(d)<EPS)d=EPS;c=1+aa/c;if(Math.abs(c)<EPS)c=EPS;d=1/d;let del=d*c;h*=del;if(Math.abs(del-1)<3e-14)break}return h}
+function iBeta(x,a,b){if(x<=0)return 0;if(x>=1)return 1;let bt=Math.exp(logGamma(a+b)-logGamma(a)-logGamma(b)+a*Math.log(x)+b*Math.log1p(-x));return x<(a+1)/(a+b+2)?bt*betaCF(a,b,x)/a:1-bt*betaCF(b,a,1-x)/b}
+function tCDF(x,df){let z=df/(df+x*x),v=0.5*iBeta(z,df/2,0.5);return x>=0?1-v:v}
+function tQuantile(p,df){let lo=-50,hi=50;for(let i=0;i<100;i++){let mid=(lo+hi)/2;if(tCDF(mid,df)<p)lo=mid;else hi=mid}return (lo+hi)/2}
+/* Noncentral-t CDF using Poisson-mixture expansion of the incomplete beta form.
+   For x >= 0: F = Phi(-delta) + 0.5 * sum_j p_j I_x(j+1/2, nu/2)
+                                      + 0.5 * sum_j q_j I_x(j+1, nu/2)
+   where x=t^2/(t^2+nu), p_j is Poisson(delta^2/2), and q_j is its half-step companion.
+   For negative t use symmetry F(-t;nu,delta)=1-F(t;nu,-delta). */
+function normalCDF(x){const sign=x<0?-1:1,a=Math.abs(x)/Math.sqrt(2);const t=1/(1+0.3275911*a);const erf=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-a*a);return 0.5*(1+sign*erf)}
+function nctCDF(tval,nu,delta){if(tval<0)return 1-nctCDF(-tval,nu,-delta);if(tval===0)return normalCDF(-delta);let x=tval*tval/(tval*tval+nu),lam=delta*delta/2;
+  // Start near the Poisson mode and sum both directions for numerical stability.
+  let j0=Math.max(0,Math.floor(lam)), logp=-lam+j0*Math.log(lam||1)-logGamma(j0+1), p0=lam===0?(j0===0?1:0):Math.exp(logp);
+  function qFromP(j,p){return delta===0?0:delta/Math.sqrt(2)*Math.exp(-lam+j*Math.log(lam||1)-logGamma(j+1.5));}
+  let sum=0, mass=0;
+  function add(j,p){if(p<=0)return;let q=qFromP(j,p);sum+=0.5*p*iBeta(x,j+0.5,nu/2)+0.5*q*iBeta(x,j+1,nu/2);mass+=p}
+  add(j0,p0);
+  let p=p0;for(let j=j0+1;j<j0+10000;j++){p*=lam/j;if(p<1e-16 && j>lam+20)break;add(j,p)}
+  p=p0;for(let j=j0-1;j>=0;j--){p*= (j+1)/(lam||1);add(j,p)}
+  let val=normalCDF(-delta)+sum;return Math.max(0,Math.min(1,val));}
+function powerAtN(n,d){let df=2*n-2,crit=tQuantile(0.975,df),nc=d*Math.sqrt(n/2);return nctCDF(-crit,df,nc)+(1-nctCDF(crit,df,nc))}
+function neededN(delta,sd,target){let d=Math.abs(delta)/sd;if(!(d>0))return null;let lo=2,hi=4;while(hi<100000 && powerAtN(hi,d)<target){lo=hi;hi*=2}if(hi>=100000 && powerAtN(hi,d)<target)return null;while(lo+1<hi){let mid=Math.floor((lo+hi)/2);if(powerAtN(mid,d)>=target)hi=mid;else lo=mid}return hi}
+function update(){let mc=+$("mc").value,mi=+$("mi").value,sd=+$("sd").value,pow=+$("power").value,delta=Math.abs(mc-mi);$("sdv").textContent=sd;$("powerv").textContent=pow.toFixed(2);$("error").textContent="";if(!Number.isFinite(delta)||!Number.isFinite(sd)||sd<=0||delta<=0){$("total").textContent="–";$("per").textContent="";$("error").textContent=delta<=0?"Die Mittelwerte müssen sich unterscheiden.":"Bitte gültige Werte eingeben.";return}let n=neededN(delta,sd,pow);$("total").textContent=n?2*n:"> 200.000";$("per").textContent=n?`${n} Personen pro Gruppe`:"Fallzahl ausserhalb des Berechnungsbereichs";$("effect").innerHTML=`Der angenommene Unterschied zwischen den Gruppen beträgt <strong>${delta} mmHg</strong>.<br>Die angenommene Standardabweichung beträgt <strong>${sd} mmHg</strong>.<br>Die gewählte Power beträgt <strong>${Math.round(pow*100)} %</strong>.`}
+function selfCheck(){const tests=[[10,20,.8,64],[5,20,.8,253],[10,40,.8,253],[10,20,.9,86]];let got=tests.map(v=>neededN(v[0],v[1],v[2]));let ok=got.every((n,i)=>n===tests[i][3]);let el=$("selfcheck");el.classList.add(ok?"ok":"bad");el.textContent=ok?"Interne Berechnungsprüfung: bestanden.":"Interne Berechnungsprüfung fehlgeschlagen: "+got.join(", ");}
+["mc","mi","sd","power"].forEach(id=>$(id).addEventListener("input",update));$("reset").onclick=()=>{$("mc").value=150;$("mi").value=140;$("sd").value=20;$("power").value=.8;update()};update();selfCheck();
+</script></body></html>
